@@ -624,3 +624,30 @@ cpBodyEachArbiter(cpBody *body, cpBodyArbiterIteratorFunc func, void *data)
 		arb = next;
 	}
 }
+
+// //////////////////////////////////////////////// chipmunk_rust_ext /////////////////////////
+
+cpConstraint * cpBodyConstraintList(cpBody *body){
+    return body->constraintList;
+}
+
+cpConstraint * cpBodyNextConstraint(cpConstraint *node, cpBody *body){
+	return (node->a == body ? node->next_a : node->next_b);
+}
+
+cpArbiter * cpBodyArbiterList(cpBody *body){
+    return body->arbiterList;
+}
+
+cpArbiter * cpBodyNextArbiter(cpArbiter *node, cpBody *body){
+	return (node->body_a == body ? node->thread_a.next : node->thread_b.next);
+}
+
+cpShape * cpBodyShapeList(cpBody *body){
+    return body->shapeList;
+}
+
+cpShape * cpBodyNextShape(cpShape *node){
+    return node->next;
+}
+

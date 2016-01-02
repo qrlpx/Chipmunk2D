@@ -494,3 +494,89 @@ cpArbiterApplyImpulse(cpArbiter *arb)
 		apply_impulses(a, b, r1, r2, cpvrotate(n, cpv(con->jnAcc - jnOld, con->jtAcc - jtOld)));
 	}
 }
+
+// //////////////////////////////////////////////// chipmunk_rust_ext /////////////////////////
+
+void cpArbiterGetShapes_NOSWAP(const cpArbiter *arb, cpShape **a, cpShape **b, cpBool swapped){
+	//if(arb->swapped){
+	if(swapped){
+		(*a) = (cpShape *)arb->b, (*b) = (cpShape *)arb->a;
+	} else {
+		(*a) = (cpShape *)arb->a, (*b) = (cpShape *)arb->b;
+	}
+}
+
+
+void cpArbiterGetBodies_NOSWAP(const cpArbiter *arb, cpBody **a, cpBody **b, cpBool swapped){
+	if(swapped){
+		(*a) = arb->body_b, (*b) = arb->body_a;
+	} else {
+		(*a) = arb->body_a, (*b) = arb->body_b;
+	}
+}
+
+cpVect cpArbiterGetSurfaceVelocity_NOSWAP(cpArbiter *arb, cpBool swapped){
+	//return cpvmult(arb->surface_vr, arb->swapped ? -1.0f : 1.0);
+	return cpvmult(arb->surface_vr, swapped ? -1.0f : 1.0);
+}
+
+void cpArbiterSetSurfaceVelocity_NOSWAP(cpArbiter *arb, cpVect vr, cpBool swapped){
+	//arb->surface_vr = cpvmult(vr, arb->swapped ? -1.0f : 1.0);
+	arb->surface_vr = cpvmult(vr, swapped ? -1.0f : 1.0);
+}
+
+cpVect cpArbiterTotalImpulse_NOSWAP(const cpArbiter *arb, cpBool swapped){
+	struct cpContact *contacts = arb->contacts;
+	cpVect n = arb->n;
+	cpVect sum = cpvzero;
+	
+	for(int i=0, count=cpArbiterGetCount(arb); i<count; i++){
+		struct cpContact *con = &contacts[i];
+		sum = cpvadd(sum, cpvrotate(n, cpv(con->jnAcc, con->jtAcc)));
+	}
+		
+	//return (arb->swapped ? sum : cpvneg(sum));
+	return (swapped ? sum : cpvneg(sum));
+}
+
+cpContactPointSet cpArbiterGetContactPointSet_NOSWAP(const cpArbiter *arb, cpBool swapped){
+	cpContactPointSet set;
+	set.count = cpArbiterGetCount(arb);
+	
+	//cpBool swapped = arb->swapped;
+	cpVect n = arb->n;
+	set.normal = (swapped ? cpvneg(n) : n);
+	
+	for(int i=0; i<set.count; i++){
+		// Contact points are relative to body CoGs;
+		cpVect p1 = cpvadd(arb->body_a->p, arb->contacts[i].r1);
+		cpVect p2 = cpvadd(arb->body_b->p, arb->contacts[i].r2);
+		
+		set.points[i].pointA = (swapped ? p2 : p1);
+		set.points[i].pointB = (swapped ? p1 : p2);
+		set.points[i].distance = cpvdot(cpvsub(p2, p1), n);
+	}
+	
+	return set;
+}
+
+void cpArbiterSetContactPointSet_NOSWAP(cpArbiter *arb, cpContactPointSet *set, cpBool swapped){
+	int count = set->count;
+	cpAssertHard(count == arb->count, "The number of contact points cannot be changed.");
+	
+	//cpBool swapped = arb->swapped;
+	arb->n = (swapped ? cpvneg(set->normal) : set->normal);
+	
+	for(int i=0; i<count; i++){
+		// Convert back to CoG relative offsets.
+		cpVect p1 = set->points[i].pointA;
+		cpVect p2 = set->points[i].pointB;
+		
+		arb->contacts[i].r1 = cpvsub(swapped ? p2 : p1, arb->body_a->p);
+		arb->contacts[i].r2 = cpvsub(swapped ? p1 : p2, arb->body_b->p);
+	}
+}
+
+
+
+

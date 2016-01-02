@@ -244,3 +244,43 @@ cpSpaceShapeQuery(cpSpace *space, cpShape *shape, cpSpaceShapeQueryFunc func, vo
 	
 	return context.anyCollision;
 }
+
+// //////////////////////////////////////////////// chipmunk_rust_ext /////////////////////////
+
+void cpSpacePointQuery_NOLOCK(cpSpace *space, cpVect point, cpFloat maxDistance, cpShapeFilter filter, cpSpacePointQueryFunc func, void *data){
+	struct PointQueryContext context = {point, maxDistance, filter, func};
+	cpBB bb = cpBBNewForCircle(point, cpfmax(maxDistance, 0.0f));
+	
+	cpSpatialIndexQuery(space->dynamicShapes, &context, bb, (cpSpatialIndexQueryFunc)NearestPointQuery, data);
+	cpSpatialIndexQuery(space->staticShapes, &context, bb, (cpSpatialIndexQueryFunc)NearestPointQuery, data);
+}
+
+void cpSpaceSegmentQuery_NOLOCK(cpSpace *space, cpVect start, cpVect end, cpFloat radius, cpShapeFilter filter, cpSpaceSegmentQueryFunc func, void *data){
+	struct SegmentQueryContext context = {
+		start, end,
+		radius,
+		filter,
+		func,
+	};
+	
+    cpSpatialIndexSegmentQuery(space->staticShapes, &context, start, end, 1.0f, (cpSpatialIndexSegmentQueryFunc)SegmentQuery, data);
+    cpSpatialIndexSegmentQuery(space->dynamicShapes, &context, start, end, 1.0f, (cpSpatialIndexSegmentQueryFunc)SegmentQuery, data);
+}
+
+void cpSpaceBBQuery_NOLOCK(cpSpace *space, cpBB bb, cpShapeFilter filter, cpSpaceBBQueryFunc func, void *data){
+	struct BBQueryContext context = {bb, filter, func};
+	
+    cpSpatialIndexQuery(space->dynamicShapes, &context, bb, (cpSpatialIndexQueryFunc)BBQuery, data);
+    cpSpatialIndexQuery(space->staticShapes, &context, bb, (cpSpatialIndexQueryFunc)BBQuery, data);
+}
+
+cpBool cpSpaceShapeQuery_NOLOCK(cpSpace *space, cpShape *shape, cpSpaceShapeQueryFunc func, void *data){
+	cpBody *body = shape->body;
+	cpBB bb = (body ? cpShapeUpdate(shape, body->transform) : shape->bb);
+	struct ShapeQueryContext context = {func, data, cpFalse};
+	
+    cpSpatialIndexQuery(space->dynamicShapes, shape, bb, (cpSpatialIndexQueryFunc)ShapeQuery, &context);
+    cpSpatialIndexQuery(space->staticShapes, shape, bb, (cpSpatialIndexQueryFunc)ShapeQuery, &context);
+	
+	return context.anyCollision;
+}
